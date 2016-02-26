@@ -32,7 +32,7 @@ import re
 import errno
 import glob
 import traceback
-import codecs
+#import codecs
 import locale
 import subprocess
 import html.entities
@@ -2766,8 +2766,8 @@ def main():
         cfg.files_from = options.files_from
 
     ## Set output and filesystem encoding for printing out filenames.
-    sys.stdout = codecs.getwriter(cfg.encoding)(sys.stdout, "replace")
-    sys.stderr = codecs.getwriter(cfg.encoding)(sys.stderr, "replace")
+    #sys.stdout = codecs.getwriter(cfg.encoding)(sys.stdout, "replace")
+    #sys.stderr = codecs.getwriter(cfg.encoding)(sys.stderr, "replace")
 
     ## Process --exclude and --exclude-from
     patterns_list, patterns_textual = process_patterns(options.exclude, options.exclude_from, is_glob = True, option_txt = "exclude")
@@ -2889,107 +2889,111 @@ def report_exception(e, msg=''):
 
         sys.stderr.write(alert_header % ("above lines", ""))
 
+from S3.ExitCodes import *
+from S3.Exceptions import *
+from S3 import PkgInfo
+from S3.S3 import S3
+from S3.Config import Config
+from S3.SortedDict import SortedDict
+from S3.FileDict import FileDict
+from S3.S3Uri import S3Uri
+from S3 import Utils
+from S3 import Crypto
+from S3.Utils import *
+from S3.Progress import Progress, StatsInfo
+from S3.CloudFront import Cmd as CfCmd
+from S3.CloudFront import CloudFront
+from S3.FileLists import *
+from S3.MultiPart import MultiPartUpload
+
 if __name__ == '__main__':
-    try:
+    #try:
         ## Our modules
         ## Keep them in try/except block to
         ## detect any syntax errors in there
-        from S3.ExitCodes import *
-        from S3.Exceptions import *
-        from S3 import PkgInfo
-        from S3.S3 import S3
-        from S3.Config import Config
-        from S3.SortedDict import SortedDict
-        from S3.FileDict import FileDict
-        from S3.S3Uri import S3Uri
-        from S3 import Utils
-        from S3 import Crypto
-        from S3.Utils import *
-        from S3.Progress import Progress, StatsInfo
-        from S3.CloudFront import Cmd as CfCmd
-        from S3.CloudFront import CloudFront
-        from S3.FileLists import *
-        from S3.MultiPart import MultiPartUpload
-    except Exception as e:
-        report_exception(e, "Error loading some components of s3cmd (Import Error)")
-        traceback.print_exc(file=sys.stderr)
-        # 1 = EX_GENERAL but be safe in that situation
-        sys.exit(1)
+    # except Exception as e:
+    #     report_exception(e, "Error loading some components of s3cmd (Import Error)")
+    #     traceback.print_exc(file=sys.stderr)
+    #     # 1 = EX_GENERAL but be safe in that situation
+    #     sys.exit(1)
 
-    try:
-        rc = main()
-        sys.exit(rc)
+    rc = main()
+    #sys.exit(rc)
+        
+#     try:
+#         rc = main()
+#         sys.exit(rc)
 
-    except ImportError as e:
-        report_exception(e)
-        sys.exit(EX_GENERAL)
+#     except ImportError as e:
+#         report_exception(e)
+#         sys.exit(EX_GENERAL)
 
-    except (ParameterError, InvalidFileError) as e:
-        error("Parameter problem: %s" % e)
-        sys.exit(EX_USAGE)
+#     except (ParameterError, InvalidFileError) as e:
+#         error("Parameter problem: %s" % e)
+#         sys.exit(EX_USAGE)
 
-    except (S3DownloadError, S3UploadError, S3RequestError) as e:
-        error("S3 Temporary Error: %s.  Please try again later." % e)
-        sys.exit(EX_TEMPFAIL)
+#     except (S3DownloadError, S3UploadError, S3RequestError) as e:
+#         error("S3 Temporary Error: %s.  Please try again later." % e)
+#         sys.exit(EX_TEMPFAIL)
 
-    except S3Error as e:
-        error("S3 error: %s" % e)
-        sys.exit(e.get_error_code())
+#     except S3Error as e:
+#         error("S3 error: %s" % e)
+#         sys.exit(e.get_error_code())
 
-    except (S3Exception, S3ResponseError, CloudFrontError) as e:
-        report_exception(e)
-        sys.exit(EX_SOFTWARE)
+#     except (S3Exception, S3ResponseError, CloudFrontError) as e:
+#         report_exception(e)
+#         sys.exit(EX_SOFTWARE)
 
-    except SystemExit as e:
-        sys.exit(e.code)
+#     except SystemExit as e:
+#         sys.exit(e.code)
 
-    except KeyboardInterrupt:
-        sys.stderr.write("See ya!\n")
-        sys.exit(EX_BREAK)
+#     except KeyboardInterrupt:
+#         sys.stderr.write("See ya!\n")
+#         sys.exit(EX_BREAK)
 
-    except SSLError as e:
-        # SSLError is a subtype of IOError
-        error("SSL certificate verification failure: %s" % e)
-        report_exception(e)
-        sys.exit(EX_ACCESSDENIED)
+#     except SSLError as e:
+#         # SSLError is a subtype of IOError
+#         error("SSL certificate verification failure: %s" % e)
+#         report_exception(e)
+#         sys.exit(EX_ACCESSDENIED)
 
-    except IOError as e:
-        if e.errno == errno.EPIPE:
-            # Fail silently on SIGPIPE. This likely means we wrote to a closed
-            # pipe and user does not care for any more output.
-            sys.exit(EX_IOERR)
+#     except IOError as e:
+#         if e.errno == errno.EPIPE:
+#             # Fail silently on SIGPIPE. This likely means we wrote to a closed
+#             # pipe and user does not care for any more output.
+#             sys.exit(EX_IOERR)
 
-        report_exception(e)
-        sys.exit(EX_IOERR)
+#         report_exception(e)
+#         sys.exit(EX_IOERR)
 
-    except OSError as e:
-        error(e)
-        sys.exit(EX_OSERR)
+#     except OSError as e:
+#         error(e)
+#         sys.exit(EX_OSERR)
 
-    except MemoryError:
-        msg = """
-MemoryError!  You have exceeded the amount of memory available for this process.
-This usually occurs when syncing >750,000 files on a 32-bit python instance.
-The solutions to this are:
-1) sync several smaller subtrees; or
-2) use a 64-bit python on a 64-bit OS with >8GB RAM
-        """
-        sys.stderr.write(msg)
-        sys.exit(EX_OSERR)
+#     except MemoryError:
+#         msg = """
+# MemoryError!  You have exceeded the amount of memory available for this process.
+# This usually occurs when syncing >750,000 files on a 32-bit python instance.
+# The solutions to this are:
+# 1) sync several smaller subtrees; or
+# 2) use a 64-bit python on a 64-bit OS with >8GB RAM
+#         """
+#         sys.stderr.write(msg)
+#         sys.exit(EX_OSERR)
 
-    except UnicodeEncodeError as e:
-        lang = os.getenv("LANG")
-        msg = """
-You have encountered a UnicodeEncodeError.  Your environment
-variable LANG=%s may not specify a Unicode encoding (e.g. UTF-8).
-Please set LANG=en_US.UTF-8 or similar in your environment before
-invoking s3cmd.
-        """ % lang
-        report_exception(e, msg)
-        sys.exit(EX_GENERAL)
+#     except UnicodeEncodeError as e:
+#         lang = os.getenv("LANG")
+#         msg = """
+# You have encountered a UnicodeEncodeError.  Your environment
+# variable LANG=%s may not specify a Unicode encoding (e.g. UTF-8).
+# Please set LANG=en_US.UTF-8 or similar in your environment before
+# invoking s3cmd.
+#         """ % lang
+#         report_exception(e, msg)
+#         sys.exit(EX_GENERAL)
 
-    except Exception as e:
-        report_exception(e)
-        sys.exit(EX_GENERAL)
+#     except Exception as e:
+#         report_exception(e)
+#         sys.exit(EX_GENERAL)
 
 # vim:et:ts=4:sts=4:ai

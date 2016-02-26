@@ -75,6 +75,8 @@ def stripNameSpace(xml):
     removeNameSpace(xml) -- remove top-level AWS namespace
     """
     r = re.compile('^(<?[^>]+?>\s*)(<\w+) xmlns=[\'"](http://[^\'"]+)[\'"](.*)', re.MULTILINE)
+    if isinstance(xml,bytes):
+        xml = xml.decode('utf-8')
     if r.match(xml):
         xmlns = r.match(xml).groups()[2]
         xml = r.sub("\\1\\2\\4", xml)
@@ -338,7 +340,7 @@ def encode_to_s3(string, errors = "replace"):
     all invalid characters with '?' or raise an exception.
     """
     if type(string) != str:
-        return str(string)
+        return str(string).encode()
     # Be quiet by default
     #debug("Encoding string to S3: %r" % string)
     try:

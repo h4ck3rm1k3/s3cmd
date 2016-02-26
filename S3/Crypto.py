@@ -34,7 +34,7 @@ def sign_string_v2(string_to_sign):
 
     Useful for REST authentication. See http://s3.amazonaws.com/doc/s3-developer-guide/RESTAuthentication.html
     """
-    signature = base64.encodestring(hmac.new(Config.Config().secret_key, string_to_sign, sha1).digest()).strip()
+    signature = base64.encodestring(hmac.new(Config.Config().secret_key.encode(), string_to_sign.encode(), sha1).digest()).strip()
     return signature
 __all__.append("sign_string_v2")
 
@@ -80,6 +80,8 @@ def sign_url_base_v2(**parms):
     return url
 
 def sign(key, msg):
+    if isinstance(key,str):
+        key = key.encode()
     return hmac.new(key, encode_to_s3(msg), sha256).digest()
 
 def getSignatureKey(key, dateStamp, regionName, serviceName):
@@ -107,10 +109,10 @@ def sign_string_v4(method='GET', host='', canonical_uri='/', params={}, region='
     canonical_uri = quote_param(splits[0], quote_backslashes=False)
     canonical_querystring += '&'.join([('%s' if '=' in qs else '%s=') % qs for qs in splits[1:]])
 
-    if type(body) == type(sha256('')):
+    if type(body) == type(sha256(b'')):
         payload_hash = body.hexdigest()
     else:
-        payload_hash = sha256(body).hexdigest()
+        payload_hash = sha256(body.encode()).hexdigest()
 
     canonical_headers = {'host' : host,
                          'x-amz-content-sha256': payload_hash,
@@ -139,8 +141,12 @@ def sign_string_v4(method='GET', host='', canonical_uri='/', params={}, region='
 
     algorithm = 'AWS4-HMAC-SHA256'
     credential_scope = datestamp + '/' + region + '/' + service + '/' + 'aws4_request'
-    string_to_sign = algorithm + '\n' +  amzdate + '\n' +  credential_scope + '\n' +  sha256(canonical_request).hexdigest()
+    string_to_sign = algorithm + '\n' +  amzdate + '\n' +  credential_scope + '\n' +  sha256(canonical_request.encode()).hexdigest()
     signing_key = getSignatureKey(secret_key, datestamp, region, service)
+
+    if isinstance(signing_key,str):
+        signing_key = signing_key.encode()
+
     signature = hmac.new(signing_key, encode_to_s3(string_to_sign), sha256).hexdigest()
     authorization_header = algorithm + ' ' + 'Credential=' + access_key + '/' + credential_scope + ',' +  'SignedHeaders=' + signed_headers + ',' + 'Signature=' + signature
     headers = dict(list(cur_headers.items()) + list({'x-amz-date':amzdate, 'Authorization':authorization_header, 'x-amz-content-sha256': payload_hash}.items()))
