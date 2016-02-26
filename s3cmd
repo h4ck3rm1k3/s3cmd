@@ -39,7 +39,7 @@ import html.entities
 import socket
 import shutil
 import tempfile
-
+import pprint 
 from copy import copy
 from optparse import OptionParser, Option, OptionValueError, IndentedHelpFormatter
 from logging import debug, info, warning, error
@@ -1219,7 +1219,8 @@ def cmd_sync_remote2local(args):
                     debug("dst_file=%s" % dst_file)
                     # create temporary files (of type .s3cmd.XXXX.tmp) in the same directory
                     # for downloading and then rename once downloaded
-                    chkptfd, chkptfname = tempfile.mkstemp(".tmp",".s3cmd.",os.path.dirname(deunicodise(dst_file)))
+                    x = os.path.dirname(deunicodise(dst_file))
+                    chkptfd, chkptfname = tempfile.mkstemp(".tmp",".s3cmd.",x.decode('utf-8'))
                     chkptfname = unicodise(chkptfname)
                     debug("created chkptfname=%s" % chkptfname)
                     dst_stream = os.fdopen(chkptfd, "wb")

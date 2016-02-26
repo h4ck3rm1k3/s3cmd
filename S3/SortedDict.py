@@ -7,6 +7,7 @@
 ## Copyright: TGRMN Software and contributors
 
 from .BidirMap import BidirMap
+import pprint
 
 class SortedDictIterator(object):
     def __init__(self, sorted_dict, keys):
@@ -42,8 +43,7 @@ class SortedDict(dict):
             lc_keys.sort()
             return [xlat_map[k] for k in lc_keys]
         else:
-            keys.sort()
-            return keys
+            return sorted(keys)
 
     def __iter__(self):
         return SortedDictIterator(self, list(self.keys()))

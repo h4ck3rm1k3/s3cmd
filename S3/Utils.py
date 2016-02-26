@@ -286,6 +286,8 @@ def unicodise(string, encoding = None, errors = "replace"):
 
     if type(string) == str:
         return string
+    if type(string) == int:
+        return str(string)
     debug("Unicodising %r using %s" % (string, encoding))
     try:
         return str(string, encoding, errors)

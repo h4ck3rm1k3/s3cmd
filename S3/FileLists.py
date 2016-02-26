@@ -21,6 +21,7 @@ import sys
 import glob
 import re
 import errno
+import pprint
 
 __all__ = ["fetch_local_list", "fetch_remote_list", "compare_filelists"]
 
@@ -354,10 +355,18 @@ def fetch_remote_list(args, require_attribs = False, recursive = None, uri_param
         if not response.get('headers'):
             return
 
+        headers2 = response['headers'].copy()
+        for k in response['headers']:
+            v = response['headers'][k]
+            k2 = k.lower()
+            headers2[k2]=v
+            
+                
+        #pprint.pprint(response['headers'])
         remote_item.update({
-        'size': int(response['headers']['content-length']),
-        'md5': response['headers']['etag'].strip('"\''),
-        'timestamp' : dateRFC822toUnix(response['headers']['last-modified'])
+        'size': int(headers2['content-length']),
+        'md5': headers2['etag'].strip('"\''),
+        'timestamp' : dateRFC822toUnix(headers2['last-modified'])
         })
         try:
             md5 = response['s3cmd-attrs']['md5']

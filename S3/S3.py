@@ -177,7 +177,7 @@ class S3Request(object):
             debug("Using signature v2")
             debug("SignHeaders: " + repr(h))
             signature = sign_string_v2(h)
-            self.headers["Authorization"] = "AWS "+self.s3.config.access_key+":"+signature
+            self.headers["Authorization"] = "AWS "+self.s3.config.access_key+":"+signature.decode('utf-8')
         else:
             debug("Using signature v4")
             hostname = self.s3.get_hostname(self.resource['bucket'])
@@ -633,7 +633,7 @@ class S3(object):
                     warning("MultiPart: size (%d vs %d) does not match for %s, reuploading."
                             % (remote_size, size, uri))
 
-        headers["content-length"] = str(size)
+        headers["Content-Length"] = str(size)
         request = self.create_request("OBJECT_PUT", uri = uri, headers = headers)
         labels = { 'source' : filename, 'destination' : uri.uri(), 'extra' : extra_label }
         response = self.send_file(request, file, labels)
@@ -1157,7 +1157,7 @@ class S3(object):
             if region is not None:
                 S3Request.region_map[request.resource['bucket']] = region
 
-        size_left = size_total = int(headers["content-length"])
+        size_left = size_total = int(headers["Content-Length"])
         filename = unicodise(file.name)
         if self.config.progress_meter:
             labels['action'] = 'upload'
@@ -1403,7 +1403,7 @@ class S3(object):
             # Only compute MD5 on the fly if we're downloading from beginning
             # Otherwise we'd get a nonsense.
             md5_hash = md5()
-        size_left = int(response["headers"]["content-length"])
+        size_left = int(response["headers"]["Content-Length"])
         size_total = start_position + size_left
         current_position = start_position
 
@@ -1473,7 +1473,7 @@ class S3(object):
             progress.update()
             progress.done("done")
 
-        md5_from_s3 = response["headers"]["etag"].strip('"')
+        md5_from_s3 = response["headers"]["ETag"].strip('"')
         if not 'x-amz-meta-s3tools-gpgenc' in response["headers"]:
             # we can't trust our stored md5 because we
             # encrypted the file after calculating it but before
@@ -1500,9 +1500,9 @@ class S3(object):
         response["elapsed"] = timestamp_end - timestamp_start
         response["size"] = current_position
         response["speed"] = response["elapsed"] and float(response["size"]) / response["elapsed"] or float(-1)
-        if response["size"] != start_position + int(response["headers"]["content-length"]):
+        if response["size"] != start_position + int(response["headers"]["Content-Length"]):
             warning("Reported size (%s) does not match received size (%s)" % (
-                start_position + int(response["headers"]["content-length"]), response["size"]))
+                start_position + int(response["headers"]["Content-Length"]), response["size"]))
         debug("ReceiveFile: Computed MD5 = %s" % response.get("md5"))
         # avoid ETags from multipart uploads that aren't the real md5
         if ('-' not in md5_from_s3 and not response["md5match"]) and (response["headers"].get("x-amz-server-side-encryption") != 'aws:kms'):
