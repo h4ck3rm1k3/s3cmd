@@ -10,17 +10,17 @@ import sys
 import hmac
 import base64
 
-import Config
+from . import Config
 from logging import debug
-from Utils import encode_to_s3, time_to_epoch, deunicodise
+from .Utils import encode_to_s3, time_to_epoch, deunicodise
 
 import datetime
-import urllib
+import urllib.request, urllib.parse, urllib.error
 
 # hashlib backported to python 2.4 / 2.5 is not compatible with hmac!
 if sys.version_info[0] == 2 and sys.version_info[1] < 6:
     import sha as sha1
-    from Crypto.Hash import SHA256 as sha256
+    from .Crypto.Hash import SHA256 as sha256
 else:
     from hashlib import sha1, sha256
 
@@ -70,13 +70,13 @@ def sign_url_base_v2(**parms):
         signtext += param_separator + 'response-content-type=' + content_type
         param_separator = '&'
     debug("Signing plaintext: %r", signtext)
-    parms['sig'] = urllib.quote_plus(sign_string_v2(signtext))
+    parms['sig'] = urllib.parse.quote_plus(sign_string_v2(signtext))
     debug("Urlencoded signature: %s", parms['sig'])
     url = "http://%(bucket)s.%(host_base)s/%(object)s?AWSAccessKeyId=%(access_key)s&Expires=%(expiry)d&Signature=%(sig)s" % parms
     if content_disposition is not None:
-        url += "&response-content-disposition=" + urllib.quote_plus(content_disposition)
+        url += "&response-content-disposition=" + urllib.parse.quote_plus(content_disposition)
     if content_type is not None:
-        url += "&response-content-type=" + urllib.quote_plus(content_type)
+        url += "&response-content-type=" + urllib.parse.quote_plus(content_type)
     return url
 
 def sign(key, msg):
@@ -100,7 +100,7 @@ def sign_string_v4(method='GET', host='', canonical_uri='/', params={}, region='
     amzdate = t.strftime('%Y%m%dT%H%M%SZ')
     datestamp = t.strftime('%Y%m%d')
 
-    canonical_querystring = '&'.join(['%s=%s' % (urllib.quote_plus(p), quote_param(params[p])) for p in sorted(params.keys())])
+    canonical_querystring = '&'.join(['%s=%s' % (urllib.parse.quote_plus(p), quote_param(params[p])) for p in sorted(params.keys())])
 
     splits = canonical_uri.split('?')
 
@@ -118,7 +118,7 @@ def sign_string_v4(method='GET', host='', canonical_uri='/', params={}, region='
                          }
     signed_headers = 'host;x-amz-content-sha256;x-amz-date'
 
-    for header in cur_headers.keys():
+    for header in list(cur_headers.keys()):
         # avoid duplicate headers and previous Authorization
         if header == 'Authorization' or header in signed_headers.split(';'):
             continue
@@ -131,7 +131,7 @@ def sign_string_v4(method='GET', host='', canonical_uri='/', params={}, region='
         canonical_headers_str += k + ":" + v + "\n"
 
     canonical_headers = canonical_headers_str
-    debug(u"canonical_headers = %s" % canonical_headers)
+    debug("canonical_headers = %s" % canonical_headers)
     signed_headers = ';'.join(sorted(signed_headers.split(';')))
 
     canonical_request = method + '\n' + canonical_uri + '\n' + canonical_querystring + '\n' + canonical_headers + '\n' + signed_headers + '\n' + payload_hash
@@ -143,13 +143,13 @@ def sign_string_v4(method='GET', host='', canonical_uri='/', params={}, region='
     signing_key = getSignatureKey(secret_key, datestamp, region, service)
     signature = hmac.new(signing_key, encode_to_s3(string_to_sign), sha256).hexdigest()
     authorization_header = algorithm + ' ' + 'Credential=' + access_key + '/' + credential_scope + ',' +  'SignedHeaders=' + signed_headers + ',' + 'Signature=' + signature
-    headers = dict(cur_headers.items() + {'x-amz-date':amzdate, 'Authorization':authorization_header, 'x-amz-content-sha256': payload_hash}.items())
+    headers = dict(list(cur_headers.items()) + list({'x-amz-date':amzdate, 'Authorization':authorization_header, 'x-amz-content-sha256': payload_hash}.items()))
     debug("signature-v4 headers: %s" % headers)
     return headers
 
 def quote_param(param, quote_backslashes=True):
     # As stated by Amazon the '/' in the filename should stay unquoted and %20 should be used for space instead of '+'
-    quoted = urllib.quote_plus(urllib.unquote_plus(param), safe='~').replace('+', '%20')
+    quoted = urllib.parse.quote_plus(urllib.parse.unquote_plus(param), safe='~').replace('+', '%20')
     if not quote_backslashes:
         quoted = quoted.replace('%2F', '/')
     return quoted

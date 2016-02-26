@@ -17,13 +17,13 @@ try:
 except ImportError:
     import elementtree.ElementTree as ET
 
-from S3 import S3
-from Config import Config
-from Exceptions import *
-from Utils import getTreeFromXml, appendXmlTextNode, getDictFromTree, dateS3toPython, getBucketFromHostname, getHostnameFromBucket, deunicodise
-from Crypto import sign_string_v2
-from S3Uri import S3Uri, S3UriS3
-from ConnMan import ConnMan
+from .S3 import S3
+from .Config import Config
+from .Exceptions import *
+from .Utils import getTreeFromXml, appendXmlTextNode, getDictFromTree, dateS3toPython, getBucketFromHostname, getHostnameFromBucket, deunicodise
+from .Crypto import sign_string_v2
+from .S3Uri import S3Uri, S3UriS3
+from .ConnMan import ConnMan
 
 cloudfront_api_version = "2010-11-01"
 cloudfront_resource = "/%(api_ver)s/distribution" % { 'api_ver' : cloudfront_api_version }
@@ -61,11 +61,11 @@ class DistributionSummary(object):
     def parse(self, tree):
         self.info = getDictFromTree(tree)
         self.info['Enabled'] = (self.info['Enabled'].lower() == "true")
-        if self.info.has_key("CNAME") and type(self.info['CNAME']) != list:
+        if "CNAME" in self.info and type(self.info['CNAME']) != list:
             self.info['CNAME'] = [self.info['CNAME']]
 
     def uri(self):
-        return S3Uri(u"cf://%s" % self.info['Id'])
+        return S3Uri("cf://%s" % self.info['Id'])
 
 class DistributionList(object):
     ## Example:
@@ -121,7 +121,7 @@ class Distribution(object):
         self.info['DistributionConfig'] = DistributionConfig(tree = tree.find(".//DistributionConfig"))
 
     def uri(self):
-        return S3Uri(u"cf://%s" % self.info['Id'])
+        return S3Uri("cf://%s" % self.info['Id'])
 
 class DistributionConfig(object):
     ## Example:
@@ -153,14 +153,14 @@ class DistributionConfig(object):
     def parse(self, tree):
         self.info = getDictFromTree(tree)
         self.info['Enabled'] = (self.info['Enabled'].lower() == "true")
-        if not self.info.has_key("CNAME"):
+        if "CNAME" not in self.info:
             self.info['CNAME'] = []
         if type(self.info['CNAME']) != list:
             self.info['CNAME'] = [self.info['CNAME']]
         self.info['CNAME'] = [cname.lower() for cname in self.info['CNAME']]
-        if not self.info.has_key("Comment"):
+        if "Comment" not in self.info:
             self.info['Comment'] = ""
-        if not self.info.has_key("DefaultRootObject"):
+        if "DefaultRootObject" not in self.info:
             self.info['DefaultRootObject'] = ""
         ## Figure out logging - complex node not parsed by getDictFromTree()
         logging_nodes = tree.findall(".//Logging")
@@ -169,7 +169,7 @@ class DistributionConfig(object):
             logging_dict['Bucket'], success = getBucketFromHostname(logging_dict['Bucket'])
             if not success:
                 warning("Logging to unparsable bucket name: %s" % logging_dict['Bucket'])
-            self.info['Logging'] = S3UriS3(u"s3://%(Bucket)s/%(Prefix)s" % logging_dict)
+            self.info['Logging'] = S3UriS3("s3://%(Bucket)s/%(Prefix)s" % logging_dict)
         else:
             self.info['Logging'] = None
 
@@ -511,8 +511,8 @@ class CloudFront(object):
         if response["status"] >= 500:
             e = CloudFrontError(response)
             if retries:
-                warning(u"Retrying failed request: %s" % op_name)
-                warning(unicode(e))
+                warning("Retrying failed request: %s" % op_name)
+                warning(str(e))
                 warning("Waiting %d sec..." % self._fail_wait(retries))
                 time.sleep(self._fail_wait(retries))
                 return self.send_request(op_name, dist_id, body, retries = retries - 1)
@@ -531,12 +531,12 @@ class CloudFront(object):
         if not headers:
             headers = {}
 
-        if headers.has_key("date"):
-            if not headers.has_key("x-amz-date"):
+        if "date" in headers:
+            if "x-amz-date" not in headers:
                 headers["x-amz-date"] = headers["date"]
             del(headers["date"])
 
-        if not headers.has_key("x-amz-date"):
+        if "x-amz-date" not in headers:
             headers["x-amz-date"] = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
 
         if len(self.config.access_token)>0:
@@ -556,7 +556,7 @@ class CloudFront(object):
     def sign_request(self, headers):
         string_to_sign = headers['x-amz-date']
         signature = sign_string_v2(string_to_sign)
-        debug(u"CloudFront.sign_request('%s') = %s" % (string_to_sign, signature))
+        debug("CloudFront.sign_request('%s') = %s" % (string_to_sign, signature))
         return signature
 
     def get_connection(self):
@@ -578,9 +578,9 @@ class CloudFront(object):
             response = self.GetList()
             CloudFront.dist_list = {}
             for d in response['dist_list'].dist_summs:
-                if d.info.has_key("S3Origin"):
+                if "S3Origin" in d.info:
                     CloudFront.dist_list[getBucketFromHostname(d.info['S3Origin']['DNSName'])[0]] = d.uri()
-                elif d.info.has_key("CustomOrigin"):
+                elif "CustomOrigin" in d.info:
                     # Aral: This used to skip over distributions with CustomOrigin, however, we mustn't
                     #       do this since S3 buckets that are set up as websites use custom origins.
                     #       Thankfully, the custom origin URLs they use start with the URL of the
@@ -594,7 +594,7 @@ class CloudFront(object):
             debug("dist_list: %s" % CloudFront.dist_list)
         try:
             return CloudFront.dist_list[uri.bucket()]
-        except Exception, e:
+        except Exception as e:
             debug(e)
             raise ParameterError("Unable to translate S3 URI to CloudFront distribution name: %s" % uri)
 
@@ -634,16 +634,16 @@ class Cmd(object):
         if not args:
             response = cf.GetList()
             for d in response['dist_list'].dist_summs:
-                if d.info.has_key("S3Origin"):
+                if "S3Origin" in d.info:
                     origin = S3UriS3.httpurl_to_s3uri(d.info['S3Origin']['DNSName'])
-                elif d.info.has_key("CustomOrigin"):
+                elif "CustomOrigin" in d.info:
                     origin = "http://%s/" % d.info['CustomOrigin']['DNSName']
                 else:
                     origin = "<unknown>"
                 pretty_output("Origin", origin)
                 pretty_output("DistId", d.uri())
                 pretty_output("DomainName", d.info['DomainName'])
-                if d.info.has_key("CNAME"):
+                if "CNAME" in d.info:
                     pretty_output("CNAMEs", ", ".join(d.info['CNAME']))
                 pretty_output("Status", d.info['Status'])
                 pretty_output("Enabled", d.info['Enabled'])
@@ -654,16 +654,16 @@ class Cmd(object):
                 response = cf.GetDistInfo(cfuri)
                 d = response['distribution']
                 dc = d.info['DistributionConfig']
-                if dc.info.has_key("S3Origin"):
+                if "S3Origin" in dc.info:
                     origin = S3UriS3.httpurl_to_s3uri(dc.info['S3Origin']['DNSName'])
-                elif dc.info.has_key("CustomOrigin"):
+                elif "CustomOrigin" in dc.info:
                     origin = "http://%s/" % dc.info['CustomOrigin']['DNSName']
                 else:
                     origin = "<unknown>"
                 pretty_output("Origin", origin)
                 pretty_output("DistId", d.uri())
                 pretty_output("DomainName", d.info['DomainName'])
-                if dc.info.has_key("CNAME"):
+                if "CNAME" in dc.info:
                     pretty_output("CNAMEs", ", ".join(dc.info['CNAME']))
                 pretty_output("Status", d.info['Status'])
                 pretty_output("Comment", dc.info['Comment'])

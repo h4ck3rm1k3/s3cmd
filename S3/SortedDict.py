@@ -6,14 +6,14 @@
 ## License: GPL Version 2
 ## Copyright: TGRMN Software and contributors
 
-from BidirMap import BidirMap
+from .BidirMap import BidirMap
 
 class SortedDictIterator(object):
     def __init__(self, sorted_dict, keys):
         self.sorted_dict = sorted_dict
         self.keys = keys
 
-    def next(self):
+    def __next__(self):
         try:
             return self.keys.pop(0)
         except IndexError:
@@ -38,7 +38,7 @@ class SortedDict(dict):
             for key in keys:
                 xlat_map[key.lower()] = key
             # Lowercase keys
-            lc_keys = xlat_map.keys()
+            lc_keys = list(xlat_map.keys())
             lc_keys.sort()
             return [xlat_map[k] for k in lc_keys]
         else:
@@ -46,10 +46,10 @@ class SortedDict(dict):
             return keys
 
     def __iter__(self):
-        return SortedDictIterator(self, self.keys())
+        return SortedDictIterator(self, list(self.keys()))
 
     def __getslice__(self, i=0, j=-1):
-        keys = self.keys()[i:j]
+        keys = list(self.keys())[i:j]
         r = SortedDict(ignore_case = self.ignore_case)
         for k in keys:
             r[k] = self[k]
@@ -59,16 +59,16 @@ class SortedDict(dict):
 if __name__ == "__main__":
     d = { 'AWS' : 1, 'Action' : 2, 'america' : 3, 'Auckland' : 4, 'America' : 5 }
     sd = SortedDict(d)
-    print "Wanted: Action, america, Auckland, AWS,    [ignore case]"
-    print "Got:   ",
+    print("Wanted: Action, america, Auckland, AWS,    [ignore case]")
+    print("Got:   ", end=' ')
     for key in sd:
-        print "%s," % key,
-    print "   [used: __iter__()]"
+        print("%s," % key, end=' ')
+    print("   [used: __iter__()]")
     d = SortedDict(d, ignore_case = False)
-    print "Wanted: AWS, Action, Auckland, america,    [case sensitive]"
-    print "Got:   ",
-    for key in d.keys():
-        print "%s," % key,
-    print "   [used: keys()]"
+    print("Wanted: AWS, Action, Auckland, america,    [case sensitive]")
+    print("Got:   ", end=' ')
+    for key in list(d.keys()):
+        print("%s," % key, end=' ')
+    print("   [used: keys()]")
 
 # vim:et:ts=4:sts=4:ai

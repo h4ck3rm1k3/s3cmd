@@ -8,7 +8,7 @@ import os
 import sys
 from stat import ST_SIZE
 from logging import debug, info, warning, error
-from Utils import getTextFromXml, getTreeFromXml, formatSize, unicodise, deunicodise, calculateChecksum, parseNodes, encode_to_s3
+from .Utils import getTextFromXml, getTreeFromXml, formatSize, unicodise, deunicodise, calculateChecksum, parseNodes, encode_to_s3
 
 class MultiPartUpload(object):
 
@@ -99,7 +99,7 @@ class MultiPartUpload(object):
             remote_statuses = self.get_parts_information(self.uri, self.upload_id)
 
         if extra_label:
-            extra_label = u' ' + extra_label
+            extra_label = ' ' + extra_label
         seq = 1
         if filename != "<stdin>":
             while size_left > 0:
@@ -114,7 +114,7 @@ class MultiPartUpload(object):
                 try:
                     self.upload_part(seq, offset, current_chunk_size, labels, remote_status = remote_statuses.get(seq))
                 except:
-                    error(u"\nUpload of '%s' part %d failed. Use\n  %s abortmp %s %s\nto abort the upload, or\n  %s --upload-id %s put ...\nto continue the upload."
+                    error("\nUpload of '%s' part %d failed. Use\n  %s abortmp %s %s\nto abort the upload, or\n  %s --upload-id %s put ...\nto continue the upload."
                           % (filename, seq, sys.argv[0], self.uri, self.upload_id, sys.argv[0], self.upload_id))
                     raise
                 seq += 1
@@ -133,7 +133,7 @@ class MultiPartUpload(object):
                 try:
                     self.upload_part(seq, offset, current_chunk_size, labels, buffer, remote_status = remote_statuses.get(seq))
                 except:
-                    error(u"\nUpload of '%s' part %d failed. Use\n  %s abortmp %s %s\nto abort, or\n  %s --upload-id %s put ...\nto continue the upload."
+                    error("\nUpload of '%s' part %d failed. Use\n  %s abortmp %s %s\nto abort, or\n  %s --upload-id %s put ...\nto continue the upload."
                           % (filename, seq, sys.argv[0], self.uri, self.upload_id, sys.argv[0], self.upload_id))
                     raise
                 seq += 1
@@ -179,7 +179,7 @@ class MultiPartUpload(object):
 
         parts_xml = []
         part_xml = "<Part><PartNumber>%i</PartNumber><ETag>%s</ETag></Part>"
-        for seq, etag in self.parts.items():
+        for seq, etag in list(self.parts.items()):
             parts_xml.append(part_xml % (seq, etag))
         body = "<CompleteMultipartUpload>%s</CompleteMultipartUpload>" % ("".join(parts_xml))
 

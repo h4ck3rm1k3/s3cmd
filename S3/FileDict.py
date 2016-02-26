@@ -7,9 +7,9 @@
 ## Copyright: TGRMN Software and contributors
 
 import logging
-from SortedDict import SortedDict
-import Utils
-import Config
+from .SortedDict import SortedDict
+from . import Utils
+from . import Config
 
 zero_length_md5 = "d41d8cd98f00b204e9800998ecf8427e"
 cfg = Config.Config()
@@ -41,7 +41,7 @@ class FileDict(SortedDict):
             return self[relative_file]['md5']
         md5 = self.get_hardlink_md5(relative_file)
         if md5 is None and 'md5' in cfg.sync_checks:
-            logging.debug(u"doing file I/O to read md5 of %s" % relative_file)
+            logging.debug("doing file I/O to read md5 of %s" % relative_file)
             md5 = Utils.hash_file_md5(self[relative_file]['full_name'])
         self.record_md5(relative_file, md5)
         self[relative_file]['md5'] = md5

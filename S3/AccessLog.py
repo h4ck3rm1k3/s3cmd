@@ -6,10 +6,10 @@
 ## License: GPL Version 2
 ## Copyright: TGRMN Software and contributors
 
-import S3Uri
-from Exceptions import ParameterError
-from Utils import getTreeFromXml
-from ACL import GranteeAnonRead
+from . import S3Uri
+from .Exceptions import ParameterError
+from .Utils import getTreeFromXml
+from .ACL import GranteeAnonRead
 
 try:
     import xml.etree.ElementTree as ET
@@ -45,7 +45,7 @@ class AccessLog(object):
 
     def targetPrefix(self):
         if self.isLoggingEnabled():
-            target_prefix = u"s3://%s/%s" % (
+            target_prefix = "s3://%s/%s" % (
                 self.tree.find(".//LoggingEnabled//TargetBucket").text,
                 self.tree.find(".//LoggingEnabled//TargetPrefix").text)
             return S3Uri.S3Uri(target_prefix)
@@ -80,14 +80,14 @@ __all__.append("AccessLog")
 
 if __name__ == "__main__":
     log = AccessLog()
-    print log
-    log.enableLogging(S3Uri.S3Uri(u"s3://targetbucket/prefix/log-"))
-    print log
+    print(log)
+    log.enableLogging(S3Uri.S3Uri("s3://targetbucket/prefix/log-"))
+    print(log)
     log.setAclPublic(True)
-    print log
+    print(log)
     log.setAclPublic(False)
-    print log
+    print(log)
     log.disableLogging()
-    print log
+    print(log)
 
 # vim:et:ts=4:sts=4:ai

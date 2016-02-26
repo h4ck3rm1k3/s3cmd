@@ -5,6 +5,10 @@ COMMIT := $(shell git rev-parse HEAD)
 SHORTCOMMIT := $(shell git rev-parse --short=8 HEAD)
 TARBALL = s3cmd-$(VERSION)-$(SHORTCOMMIT).tar.gz
 
+test:
+	./s3cmd ls
+	#	./s3cmd sync s3://BUCKET[/PREFIX] LOCAL_DIR
+
 release:
 	python2 setup.py register sdist upload --sign
 

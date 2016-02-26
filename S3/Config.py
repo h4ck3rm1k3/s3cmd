@@ -11,15 +11,15 @@ from logging import debug, warning, error
 import re
 import os
 import sys
-import Progress
-from SortedDict import SortedDict
-import httplib
+from . import Progress
+from .SortedDict import SortedDict
+import http.client
 import locale
 try:
     import json
 except ImportError:
     pass
-
+import pprint
 class Config(object):
     _instance = None
     _parsed_files = []
@@ -173,7 +173,7 @@ class Config(object):
             error("IAM authentication not available -- missing module json")
             raise
         try:
-            conn = httplib.HTTPConnection(host='169.254.169.254', timeout = 2)
+            conn = http.client.HTTPConnection(host='169.254.169.254', timeout = 2)
             conn.request('GET', "/latest/meta-data/iam/security-credentials/")
             resp = conn.getresponse()
             files = resp.read()
@@ -203,7 +203,7 @@ class Config(object):
         try:
             cred_file = open(os.environ['AWS_CREDENTIAL_FILE'],'r')
             cred_content = cred_file.read()
-        except IOError, e:
+        except IOError as e:
             debug("Error %d accessing credentials file %s" % (e.errno,os.environ['AWS_CREDENTIAL_FILE']))
         r_data = re.compile("^\s*(?P<orig_key>\w+)\s*=\s*(?P<value>.*)")
         r_quotes = re.compile("^\"(.*)\"\s*$")
@@ -280,13 +280,12 @@ class Config(object):
         ## verbosity must be known to "logging" module
         if option == "verbosity":
             # support integer verboisities
-            try:
-                value = int(value)
-            except ValueError:
+            if value in logging._nameToLevel:
+                value = logging._nameToLevel[value]
+            else:
                 try:
-                    # otherwise it must be a key known to the logging module
-                    value = logging._levelNames[value]
-                except KeyError:
+                    value = int(value)
+                except ValueError:
                     error("Config: verbosity level '%s' is not valid" % value)
                     return
 
@@ -369,7 +368,7 @@ class ConfigParser(object):
         self.cfg[name] = value
 
     def get(self, name, default = None):
-        if self.cfg.has_key(name):
+        if name in self.cfg:
             return self.cfg[name]
         return default
 

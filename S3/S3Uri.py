@@ -9,8 +9,8 @@
 import os
 import re
 import sys
-from Utils import unicodise, deunicodise, check_bucket_name_dns_support
-import Config
+from .Utils import unicodise, deunicodise, check_bucket_name_dns_support
+from . import Config
 
 class S3Uri(object):
     type = None
@@ -74,7 +74,7 @@ class S3UriS3(S3Uri):
         return bool(self._object)
 
     def uri(self):
-        return u"/".join([u"s3:/", self._bucket, self._object])
+        return "/".join(["s3:/", self._bucket, self._object])
 
     def is_dns_compatible(self):
         return check_bucket_name_dns_support(Config.Config().host_bucket, self._bucket)
@@ -93,7 +93,7 @@ class S3UriS3(S3Uri):
 
     @staticmethod
     def compose_uri(bucket, object = ""):
-        return u"s3://%s/%s" % (bucket, object)
+        return "s3://%s/%s" % (bucket, object)
 
     @staticmethod
     def httpurl_to_s3uri(http_url):
@@ -114,7 +114,7 @@ class S3UriS3(S3Uri):
             bucket = hostname[:-(len(".s3.amazonaws.com"))]
         else:
             raise ValueError("Unable to parse URL: %s" % http_url)
-        return S3Uri(u"s3://%(bucket)s/%(object)s" % {
+        return S3Uri("s3://%(bucket)s/%(object)s" % {
             'bucket' : bucket,
             'object' : object })
 
@@ -136,7 +136,7 @@ class S3UriS3FS(S3Uri):
         return "/".join(self._path)
 
     def uri(self):
-        return "/".join([u"s3fs:/", self._fsname, self.path()])
+        return "/".join(["s3fs:/", self._fsname, self.path()])
 
 class S3UriFile(S3Uri):
     type = "file"
@@ -185,39 +185,39 @@ class S3UriCloudFront(S3Uri):
 
 if __name__ == "__main__":
     uri = S3Uri("s3://bucket/object")
-    print "type()  =", type(uri)
-    print "uri     =", uri
-    print "uri.type=", uri.type
-    print "bucket  =", uri.bucket()
-    print "object  =", uri.object()
-    print
+    print("type()  =", type(uri))
+    print("uri     =", uri)
+    print("uri.type=", uri.type)
+    print("bucket  =", uri.bucket())
+    print("object  =", uri.object())
+    print()
 
     uri = S3Uri("s3://bucket")
-    print "type()  =", type(uri)
-    print "uri     =", uri
-    print "uri.type=", uri.type
-    print "bucket  =", uri.bucket()
-    print
+    print("type()  =", type(uri))
+    print("uri     =", uri)
+    print("uri.type=", uri.type)
+    print("bucket  =", uri.bucket())
+    print()
 
     uri = S3Uri("s3fs://filesystem1/path/to/remote/file.txt")
-    print "type()  =", type(uri)
-    print "uri     =", uri
-    print "uri.type=", uri.type
-    print "path    =", uri.path()
-    print
+    print("type()  =", type(uri))
+    print("uri     =", uri)
+    print("uri.type=", uri.type)
+    print("path    =", uri.path())
+    print()
 
     uri = S3Uri("/path/to/local/file.txt")
-    print "type()  =", type(uri)
-    print "uri     =", uri
-    print "uri.type=", uri.type
-    print "path    =", uri.path()
-    print
+    print("type()  =", type(uri))
+    print("uri     =", uri)
+    print("uri.type=", uri.type)
+    print("path    =", uri.path())
+    print()
 
     uri = S3Uri("cf://1234567890ABCD/")
-    print "type()  =", type(uri)
-    print "uri     =", uri
-    print "uri.type=", uri.type
-    print "dist_id =", uri.dist_id()
-    print
+    print("type()  =", type(uri))
+    print("uri     =", uri)
+    print("uri.type=", uri.type)
+    print("dist_id =", uri.dist_id())
+    print()
 
 # vim:et:ts=4:sts=4:ai

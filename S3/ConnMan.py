@@ -7,13 +7,13 @@
 ## Copyright: TGRMN Software and contributors
 
 import sys
-import httplib
+import http.client
 import ssl
 from threading import Semaphore
 from logging import debug
 
-from Config import Config
-from Exceptions import ParameterError
+from .Config import Config
+from .Exceptions import ParameterError
 
 if not 'CertificateError ' in ssl.__dict__:
     class CertificateError(Exception):
@@ -36,13 +36,13 @@ class http_connection(object):
             pass
         if context and not cfg.check_ssl_hostname:
             context.check_hostname = False
-            debug(u'Disabling SSL certificate hostname checking')
+            debug('Disabling SSL certificate hostname checking')
 
         return context
 
     @staticmethod
     def _ssl_unverified_context(cafile):
-        debug(u'Disabling SSL certificate checking')
+        debug('Disabling SSL certificate checking')
         context = None
         try:
             context = ssl._create_unverified_context(cafile=cafile,
@@ -60,7 +60,7 @@ class http_connection(object):
         cafile = cfg.ca_certs_file
         if cafile == "":
             cafile = None
-        debug(u"Using ca_certs_file %s" % cafile)
+        debug("Using ca_certs_file %s" % cafile)
 
         if cfg.check_ssl_certificate:
             context = http_connection._ssl_verified_context(cafile)
@@ -89,7 +89,7 @@ class http_connection(object):
         hostname for the *.s3.amazonaws.com wildcard cert, and for the
         region-specific *.s3-[region].amazonaws.com wildcard cert.
         """
-        debug(u'checking SSL subjectAltName against amazonaws.com')
+        debug('checking SSL subjectAltName against amazonaws.com')
         san = cert.get('subjectAltName', ())
         for key, value in san:
             if key == 'DNS':
@@ -107,7 +107,7 @@ class http_connection(object):
             return
         except ValueError: # empty SSL cert means underlying SSL library didn't validate it, we don't either.
             return
-        except ssl.CertificateError, e:
+        except ssl.CertificateError as e:
             self.match_hostname_aws(cert, e)
 
     @staticmethod
@@ -121,21 +121,21 @@ class http_connection(object):
                 # after the connection is made and we get control
                 # back.  We then run the same check, relaxed for S3's
                 # wildcard certificates.
-                debug(u'Recognized AWS S3 host, disabling initial SSL hostname check')
+                debug('Recognized AWS S3 host, disabling initial SSL hostname check')
                 check_hostname = False
                 if context:
                     context.check_hostname = False
-            conn = httplib.HTTPSConnection(hostname, port, context=context, check_hostname=check_hostname)
-            debug(u'httplib.HTTPSConnection() has both context and check_hostname')
+            conn = http.client.HTTPSConnection(hostname, port, context=context, check_hostname=check_hostname)
+            debug('httplib.HTTPSConnection() has both context and check_hostname')
         except TypeError:
             try:
                 # in case check_hostname parameter is not present try again
-                conn = httplib.HTTPSConnection(hostname, port, context=context)
-                debug(u'httplib.HTTPSConnection() has only context')
+                conn = http.client.HTTPSConnection(hostname, port, context=context)
+                debug('httplib.HTTPSConnection() has only context')
             except TypeError:
                 # in case even context parameter is not present try one last time
-                conn = httplib.HTTPSConnection(hostname, port)
-                debug(u'httplib.HTTPSConnection() has neither context nor check_hostname')
+                conn = http.client.HTTPSConnection(hostname, port)
+                debug('httplib.HTTPSConnection() has neither context nor check_hostname')
         return conn
 
     def __init__(self, id, hostname, ssl, cfg):
@@ -146,20 +146,20 @@ class http_connection(object):
 
         if not ssl:
             if cfg.proxy_host != "":
-                self.c = httplib.HTTPConnection(cfg.proxy_host, cfg.proxy_port)
-                debug(u'proxied HTTPConnection(%s, %s)' % (cfg.proxy_host, cfg.proxy_port))
+                self.c = http.client.HTTPConnection(cfg.proxy_host, cfg.proxy_port)
+                debug('proxied HTTPConnection(%s, %s)' % (cfg.proxy_host, cfg.proxy_port))
             else:
-                self.c = httplib.HTTPConnection(hostname)
-                debug(u'non-proxied HTTPConnection(%s)' % hostname)
+                self.c = http.client.HTTPConnection(hostname)
+                debug('non-proxied HTTPConnection(%s)' % hostname)
         else:
             if cfg.proxy_host != "":
                 self.c = http_connection._https_connection(cfg.proxy_host, cfg.proxy_port)
                 self.c.set_tunnel(hostname)
-                debug(u'proxied HTTPSConnection(%s, %s)' % (cfg.proxy_host, cfg.proxy_port))
-                debug(u'tunnel to %s' % hostname)
+                debug('proxied HTTPSConnection(%s, %s)' % (cfg.proxy_host, cfg.proxy_port))
+                debug('tunnel to %s' % hostname)
             else:
                 self.c = http_connection._https_connection(hostname)
-                debug(u'non-proxied HTTPSConnection(%s)' % hostname)
+                debug('non-proxied HTTPSConnection(%s)' % hostname)
 
 
 class ConnMan(object):
@@ -180,7 +180,7 @@ class ConnMan(object):
         else:
             conn_id = "http%s://%s" % (ssl and "s" or "", hostname)
         ConnMan.conn_pool_sem.acquire()
-        if not ConnMan.conn_pool.has_key(conn_id):
+        if conn_id not in ConnMan.conn_pool:
             ConnMan.conn_pool[conn_id] = []
         if len(ConnMan.conn_pool[conn_id]):
             conn = ConnMan.conn_pool[conn_id].pop()

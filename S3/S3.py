@@ -15,24 +15,24 @@ import mimetypes
 from xml.sax import saxutils
 from logging import debug, info, warning, error
 from stat import ST_SIZE
-from urllib import quote_plus
+from urllib.parse import quote_plus
 
 try:
     from hashlib import md5
 except ImportError:
     from md5 import md5
 
-from Utils import *
-from SortedDict import SortedDict
-from AccessLog import AccessLog
-from ACL import ACL, GranteeLogDelivery
-from BidirMap import BidirMap
-from Config import Config
-from Exceptions import *
-from MultiPart import MultiPartUpload
-from S3Uri import S3Uri
-from ConnMan import ConnMan, CertificateError
-from Crypto import sign_string_v2, sign_string_v4, checksum_sha256_file, checksum_sha256_buffer
+from .Utils import *
+from .SortedDict import SortedDict
+from .AccessLog import AccessLog
+from .ACL import ACL, GranteeLogDelivery
+from .BidirMap import BidirMap
+from .Config import Config
+from .Exceptions import *
+from .MultiPart import MultiPartUpload
+from .S3Uri import S3Uri
+from .ConnMan import ConnMan, CertificateError
+from .Crypto import sign_string_v2, sign_string_v4, checksum_sha256_file, checksum_sha256_buffer
 
 try:
     from ctypes import ArgumentError
@@ -77,7 +77,7 @@ try:
         def mime_magic_file(file):
             return magic_.file(deunicodise(file))
 
-except ImportError, e:
+except ImportError as e:
     if 'magic' in str(e):
         magic_message = "Module python-magic is not available."
     else:
@@ -131,7 +131,7 @@ class S3Request(object):
             self.headers['x-amz-request-payer'] = 'requester'
 
     def update_timestamp(self):
-        if self.headers.has_key("date"):
+        if "date" in self.headers:
             del(self.headers["date"])
         self.headers["x-amz-date"] = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
 
@@ -262,7 +262,7 @@ class S3(object):
 
     def get_hostname(self, bucket):
         if bucket and check_bucket_name_dns_support(self.config.host_bucket, bucket):
-            if self.redir_map.has_key(bucket):
+            if bucket in self.redir_map:
                 host = self.redir_map[bucket]
             else:
                 host = getHostnameFromBucket(bucket)
@@ -409,7 +409,7 @@ class S3(object):
                 "bucket" : uri.bucket(),
                 "location" : self.get_bucket_location(uri)}
             return response
-        except S3Error, e:
+        except S3Error as e:
             if e.status == 404:
                 debug("Could not get /?website - website probably not configured for this bucket")
                 return None
@@ -455,7 +455,7 @@ class S3(object):
             response['date'] = getTextFromXml(response['data'], ".//Rule//Expiration//Date")
             response['days'] = getTextFromXml(response['data'], ".//Rule//Expiration//Days")
             return response
-        except S3Error, e:
+        except S3Error as e:
             if e.status == 404:
                 debug("Could not get /?lifecycle - lifecycle probably not configured for this bucket")
                 return None
@@ -526,7 +526,7 @@ class S3(object):
         content_type = self.config.mime_type
         content_charset = None
 
-        if filename == u'-':
+        if filename == '-':
             return self.stdin_content_type()
         if not content_type:
             (content_type, content_charset) = self._guess_content_type(filename)
@@ -561,7 +561,7 @@ class S3(object):
             raise ValueError("Expected URI type 's3', got '%s'" % uri.type)
 
         if filename != "-" and not os.path.isfile(deunicodise(filename)):
-            raise InvalidFileError(u"Not a regular file")
+            raise InvalidFileError("Not a regular file")
         try:
             if filename == "-":
                 file = sys.stdin
@@ -569,8 +569,8 @@ class S3(object):
             else:
                 file = open(deunicodise(filename), "rb")
                 size = os.stat(deunicodise(filename))[ST_SIZE]
-        except (IOError, OSError), e:
-            raise InvalidFileError(u"%s" % e.strerror)
+        except (IOError, OSError) as e:
+            raise InvalidFileError("%s" % e.strerror)
 
         headers = SortedDict(ignore_case = True)
         if extra_headers:
@@ -619,7 +619,7 @@ class S3(object):
                 info = None
 
             if info is not None:
-                remote_size = long(info['headers']['content-length'])
+                remote_size = int(info['headers']['content-length'])
                 remote_checksum = info['headers']['etag'].strip('"\'')
                 if size == remote_size:
                     checksum = calculateChecksum('', file, 0, size, self.config.send_chunk)
@@ -655,7 +655,7 @@ class S3(object):
     def object_batch_delete_uri_strs(self, uris):
         """ Batch delete given a list of object uris """
         def compose_batch_del_xml(bucket, key_list):
-            body = u"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete>"
+            body = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete>"
             for key in key_list:
                 uri = S3Uri(key)
                 if uri.type != "s3":
@@ -665,8 +665,8 @@ class S3(object):
                 if uri.bucket() != bucket:
                     raise ValueError("The batch should contain keys from the same bucket")
                 object = saxutils.escape(uri.object())
-                body += u"<Object><Key>%s</Key></Object>" % object
-            body += u"</Delete>"
+                body += "<Object><Key>%s</Key></Object>" % object
+            body += "</Delete>"
             body = encode_to_s3(body)
             return body
 
@@ -843,7 +843,7 @@ class S3(object):
             return { 'status' : 501 } # not implemented
 
         body = str(acl)
-        debug(u"set_acl(%s): acl-xml: %s" % (uri, body))
+        debug("set_acl(%s): acl-xml: %s" % (uri, body))
 
         headers = {'content-type': 'application/xml'}
         if uri.has_object():
@@ -870,7 +870,7 @@ class S3(object):
 
     def delete_policy(self, uri):
         request = self.create_request("BUCKET_DELETE", uri = uri, extra = "?policy")
-        debug(u"delete_policy(%s)" % uri)
+        debug("delete_policy(%s)" % uri)
         response = self.send_request(request)
         return response
 
@@ -891,7 +891,7 @@ class S3(object):
 
     def delete_cors(self, uri):
         request = self.create_request("BUCKET_DELETE", uri = uri, extra = "?cors")
-        debug(u"delete_cors(%s)" % uri)
+        debug("delete_cors(%s)" % uri)
         response = self.send_request(request)
         return response
 
@@ -900,7 +900,7 @@ class S3(object):
         headers['content-md5'] = compute_content_md5(policy)
         request = self.create_request("BUCKET_CREATE", uri = uri,
                                       extra = "?lifecycle", headers=headers, body = policy)
-        debug(u"set_lifecycle_policy(%s): policy-xml: %s" % (uri, policy))
+        debug("set_lifecycle_policy(%s): policy-xml: %s" % (uri, policy))
         response = self.send_request(request)
         return response
 
@@ -920,7 +920,7 @@ class S3(object):
 
     def delete_lifecycle_policy(self, uri):
         request = self.create_request("BUCKET_DELETE", uri = uri, extra = "?lifecycle")
-        debug(u"delete_lifecycle_policy(%s)" % uri)
+        debug("delete_lifecycle_policy(%s)" % uri)
         response = self.send_request(request)
         return response
 
@@ -964,15 +964,15 @@ class S3(object):
             accesslog.disableLogging()
 
         body = str(accesslog)
-        debug(u"set_accesslog(%s): accesslog-xml: %s" % (uri, body))
+        debug("set_accesslog(%s): accesslog-xml: %s" % (uri, body))
 
         request = self.create_request("BUCKET_CREATE", bucket = uri.bucket(), extra = "?logging", body = body)
         try:
             response = self.send_request(request)
-        except S3Error, e:
+        except S3Error as e:
             if e.info['Code'] == "InvalidTargetBucketForLogging":
                 info("Setting up log-delivery ACL for target bucket.")
-                self.set_accesslog_acl(S3Uri(u"s3://%s" % log_target_prefix_uri.bucket()))
+                self.set_accesslog_acl(S3Uri("s3://%s" % log_target_prefix_uri.bucket()))
                 response = self.send_request(request)
             else:
                 raise
@@ -980,7 +980,7 @@ class S3(object):
 
     ## Low level methods
     def urlencode_string(self, string, urlencoding_mode = None):
-        if type(string) == unicode:
+        if type(string) == str:
             string = string.encode("utf-8")
 
         if urlencoding_mode is None:
@@ -1036,24 +1036,24 @@ class S3(object):
                     info('Forwarding request to %s' % region)
                     return fn(*args, **kwargs)
                 else:
-                    message = u'Could not determine bucket location. Please consider using --region parameter.'
+                    message = 'Could not determine bucket location. Please consider using --region parameter.'
 
             elif failureCode == 'InvalidRequest':
                 if message == 'The authorization mechanism you have provided is not supported. Please use AWS4-HMAC-SHA256.':
-                    debug(u'Endpoint requires signature v4')
+                    debug('Endpoint requires signature v4')
                     self.endpoint_requires_signature_v4 = True
                     return fn(*args, **kwargs)
 
             elif failureCode == 'InvalidArgument': # returned by DreamObjects on send_request and send_file,
                                                    # which doesn't support signature v4. Retry with signature v2
                 if not request.use_signature_v2() and not self.fallback_to_signature_v2: # have not tried with v2 yet
-                    debug(u'Falling back to signature v2')
+                    debug('Falling back to signature v2')
                     self.fallback_to_signature_v2 = True
                     return fn(*args, **kwargs)
 
         else: # returned by DreamObjects on recv_file, which doesn't support signature v4. Retry with signature v2
             if not request.use_signature_v2() and not self.fallback_to_signature_v2: # have not tried with v2 yet
-                debug(u'Falling back to signature v2')
+                debug('Falling back to signature v2')
                 self.fallback_to_signature_v2 = True
                 return fn(*args, **kwargs)
 
@@ -1067,7 +1067,7 @@ class S3(object):
             if failureCode == 'AccessDenied':  # traditional HTTP 403
                 if message == 'AWS authentication requires a valid Date or x-amz-date header': # message from an Eucalyptus walrus server
                     if not request.use_signature_v2() and not self.fallback_to_signature_v2: # have not tried with v2 yet
-                        debug(u'Falling back to signature v2')
+                        debug('Falling back to signature v2')
                         self.fallback_to_signature_v2 = True
                         return fn(*args, **kwargs)
 
@@ -1088,18 +1088,18 @@ class S3(object):
             response["reason"] = http_response.reason
             response["headers"] = convertTupleListToDict(http_response.getheaders())
             response["data"] =  http_response.read()
-            if response["headers"].has_key("x-amz-meta-s3cmd-attrs"):
+            if "x-amz-meta-s3cmd-attrs" in response["headers"]:
                 attrs = parse_attrs_header(response["headers"]["x-amz-meta-s3cmd-attrs"])
                 response["s3cmd-attrs"] = attrs
             debug("Response: " + str(response))
             ConnMan.put(conn)
-        except ParameterError, e:
+        except ParameterError as e:
             raise
         except OSError:
             raise
         except CertificateError:
             raise
-        except (IOError, Exception), e:
+        except (IOError, Exception) as e:
             if hasattr(e, 'errno') and e.errno != errno.EPIPE:
                 raise
             # close the connection and re-establish
@@ -1136,8 +1136,8 @@ class S3(object):
                 retries = 0
 
             if retries:
-                warning(u"Retrying failed request: %s" % resource['uri'])
-                warning(unicode(e))
+                warning("Retrying failed request: %s" % resource['uri'])
+                warning(str(e))
                 warning("Waiting %d sec..." % self._fail_wait(retries))
                 time.sleep(self._fail_wait(retries))
                 return self.send_request(request, retries - 1)
@@ -1152,15 +1152,15 @@ class S3(object):
     def send_file(self, request, file, labels, buffer = '', throttle = 0, retries = _max_retries, offset = 0, chunk_size = -1):
         method_string, resource, headers = request.get_triplet()
         if S3Request.region_map.get(request.resource['bucket'], Config().bucket_location) is None:
-            s3_uri = S3Uri(u's3://' + request.resource['bucket'])
+            s3_uri = S3Uri('s3://' + request.resource['bucket'])
             region = self.get_bucket_location(s3_uri)
             if region is not None:
                 S3Request.region_map[request.resource['bucket']] = region
 
-        size_left = size_total = long(headers["content-length"])
+        size_left = size_total = int(headers["content-length"])
         filename = unicodise(file.name)
         if self.config.progress_meter:
-            labels[u'action'] = u'upload'
+            labels['action'] = 'upload'
             progress = self.config.progress_class(labels, size_total)
         else:
             info("Sending file '%s', please wait..." % filename)
@@ -1175,12 +1175,12 @@ class S3(object):
         try:
             conn = ConnMan.get(self.get_hostname(resource['bucket']))
             conn.c.putrequest(method_string, self.format_uri(resource))
-            for header in headers.keys():
+            for header in list(headers.keys()):
                 conn.c.putheader(header, str(headers[header]))
             conn.c.endheaders()
-        except ParameterError, e:
+        except ParameterError as e:
             raise
-        except Exception, e:
+        except Exception as e:
             if self.config.progress_meter:
                 progress.done("failed")
             if retries:
@@ -1230,10 +1230,10 @@ class S3(object):
             response["data"] = http_response.read()
             response["size"] = size_total
             ConnMan.put(conn)
-            debug(u"Response: %s" % response)
-        except ParameterError, e:
+            debug("Response: %s" % response)
+        except ParameterError as e:
             raise
-        except Exception, e:
+        except Exception as e:
             if self.config.progress_meter:
                 progress.done("failed")
             if retries:
@@ -1275,7 +1275,7 @@ class S3(object):
 
         # S3 from time to time doesn't send ETag back in a response :-(
         # Force re-upload here.
-        if not response['headers'].has_key('etag'):
+        if 'etag' not in response['headers']:
             response['headers']['etag'] = ''
 
         if response["status"] < 200 or response["status"] > 299:
@@ -1335,7 +1335,7 @@ class S3(object):
         method_string, resource, headers = request.get_triplet()
         filename = unicodise(stream.name)
         if self.config.progress_meter:
-            labels[u'action'] = u'download'
+            labels['action'] = 'download'
             progress = self.config.progress_class(labels, 0)
         else:
             info("Receiving file '%s', please wait..." % filename)
@@ -1343,7 +1343,7 @@ class S3(object):
         try:
             conn = ConnMan.get(self.get_hostname(resource['bucket']))
             conn.c.putrequest(method_string, self.format_uri(resource))
-            for header in headers.keys():
+            for header in list(headers.keys()):
                 conn.c.putheader(header, str(headers[header]))
             if start_position > 0:
                 debug("Requesting Range: %d .. end" % start_position)
@@ -1354,15 +1354,15 @@ class S3(object):
             response["status"] = http_response.status
             response["reason"] = http_response.reason
             response["headers"] = convertTupleListToDict(http_response.getheaders())
-            if response["headers"].has_key("x-amz-meta-s3cmd-attrs"):
+            if "x-amz-meta-s3cmd-attrs" in response["headers"]:
                 attrs = parse_attrs_header(response["headers"]["x-amz-meta-s3cmd-attrs"])
                 response["s3cmd-attrs"] = attrs
             debug("Response: %s" % response)
-        except ParameterError, e:
+        except ParameterError as e:
             raise
-        except OSError, e:
+        except OSError as e:
             raise
-        except (IOError, Exception), e:
+        except (IOError, Exception) as e:
             if self.config.progress_meter:
                 progress.done("failed")
             if hasattr(e, 'errno') and e.errno != errno.EPIPE:
@@ -1403,7 +1403,7 @@ class S3(object):
             # Only compute MD5 on the fly if we're downloading from beginning
             # Otherwise we'd get a nonsense.
             md5_hash = md5()
-        size_left = long(response["headers"]["content-length"])
+        size_left = int(response["headers"]["content-length"])
         size_total = start_position + size_left
         current_position = start_position
 
@@ -1445,7 +1445,7 @@ class S3(object):
             ConnMan.put(conn)
         except OSError:
             raise
-        except (IOError, Exception), e:
+        except (IOError, Exception) as e:
             if self.config.progress_meter:
                 progress.done("failed")
             if hasattr(e, 'errno') and e.errno != errno.EPIPE:
@@ -1491,7 +1491,7 @@ class S3(object):
                 # Otherwise try to compute MD5 of the output file
                 try:
                     response["md5"] = hash_file_md5(filename)
-                except IOError, e:
+                except IOError as e:
                     if e.errno != errno.ENOENT:
                         warning("Unable to open file: %s: %s" % (filename, e))
                     warning("Unable to verify MD5. Assume it matches.")
@@ -1500,9 +1500,9 @@ class S3(object):
         response["elapsed"] = timestamp_end - timestamp_start
         response["size"] = current_position
         response["speed"] = response["elapsed"] and float(response["size"]) / response["elapsed"] or float(-1)
-        if response["size"] != start_position + long(response["headers"]["content-length"]):
+        if response["size"] != start_position + int(response["headers"]["content-length"]):
             warning("Reported size (%s) does not match received size (%s)" % (
-                start_position + long(response["headers"]["content-length"]), response["size"]))
+                start_position + int(response["headers"]["content-length"]), response["size"]))
         debug("ReceiveFile: Computed MD5 = %s" % response.get("md5"))
         # avoid ETags from multipart uploads that aren't the real md5
         if ('-' not in md5_from_s3 and not response["md5match"]) and (response["headers"].get("x-amz-server-side-encryption") != 'aws:kms'):
